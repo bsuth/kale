@@ -131,6 +131,7 @@ Commands:
 Options:
    -h, --help             Show this help message and exit.
    -v, --version          Show version and exit.
+   --bitexpr    <EXPR>    Expression to use for bit operations.
    -b, --bitlib <LIB>     Library to use for bit operations.
    -t, --target <TARGET>  Lua target for version compatability.
                           Must be one of: { table.concat(VALID_LUA_TARGETS, ', ') }
@@ -463,6 +464,8 @@ while current_arg_index <= num_args {
     }
   } elseif arg_value == '-o' || arg_value == '--outdir' {
     cli.outdir = parse_option(arg_value)
+  } elseif arg_value == '--bitexpr' {
+    config.bitexpr = parse_option(arg_value)
   } elseif arg_value == '-b' || arg_value == '--bitlib' {
     config.bitlib = parse_option(arg_value)
   } elseif arg_value:sub(1, 1) == '-' {
