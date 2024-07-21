@@ -1706,6 +1706,10 @@ return (source, options = {}) -> {
   alias = options.alias || get_source_alias(source)
   lua_target = options.lua_target || config.lua_target
 
+  if options.bitlib {
+    print("WARNING: `bitlib` has been deprecated in favor of `bitexpr`.")
+  }
+
   local bitlib = options.bitlib || config.bitlib
   bitexpr = options.bitexpr || config.bitexpr
     || (bitlib && "require('{ bitlib }')")

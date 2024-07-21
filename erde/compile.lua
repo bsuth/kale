@@ -1374,6 +1374,9 @@ return function(source, options)
 	goto_labels = {}
 	alias = options.alias or get_source_alias(source)
 	lua_target = options.lua_target or config.lua_target
+	if options.bitlib then
+		print("WARNING: `bitlib` has been deprecated in favor of `bitexpr`.")
+	end
 	local bitlib = options.bitlib or config.bitlib
 	bitexpr = options.bitexpr
 		or config.bitexpr
@@ -1388,10 +1391,10 @@ return function(source, options)
 		source_map = source_map,
 		source_line = current_token.line,
 	})
-	for _, __ERDE_TMP_1933__ in ipairs(goto_jumps) do
+	for _, __ERDE_TMP_1936__ in ipairs(goto_jumps) do
 		local label, line
-		label = __ERDE_TMP_1933__.label
-		line = __ERDE_TMP_1933__.line
+		label = __ERDE_TMP_1936__.label
+		line = __ERDE_TMP_1936__.line
 		if goto_labels[label] == nil then
 			throw("failed to find goto label '" .. tostring(label) .. "'", line)
 		end
