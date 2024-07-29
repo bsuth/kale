@@ -77,8 +77,8 @@ local alias
 -- Lua targets to support when generating compiled code.
 local lua_target
 
--- Resolved bit library to use for compiling bit operations.
-local bitlib
+-- Resolved bit expression to use for compiling bit operations.
+local bitexpr
 
 -- -----------------------------------------------------------------------------
 -- General Helpers
@@ -231,13 +231,13 @@ local function compile_binop(op_token, op_line, lhs, rhs) {
     -- SOURCEMAP: Handle incompatible argument types (`math.floor`)
     -- SOURCEMAP: Handle incompatible operand types (`/`)
     return { op_line, 'math.floor(', lhs, op_line, '/', rhs, ')' }
-  } elseif bitlib && BITOPS[op_token] {
-    -- NOTE: We wrap the bitlib call in parentheses to prevent tail calls in
+  } elseif bitexpr && BITOPS[op_token] {
+    -- NOTE: We wrap the bitop call in parentheses to prevent tail calls in
     -- LuaJIT, since any errors will have a misleading stacktrace.
     -- see: https://www.freelists.org/post/luajit/Bad-stack-trace-from-lua-getstack-and-lua-getinfo,1
     --
     -- SOURCEMAP: Handle incompatible argument types
-    return { op_line, "(require('{ bitlib }').{ BITLIB_METHODS[op_token] }(", lhs, ',', rhs, '))' }
+    return { op_line, "(({ bitexpr }).{ BITLIB_METHODS[op_token] }(", lhs, ',', rhs, '))' }
   } elseif op_token == '!=' {
     return { lhs, '~=', rhs }
   } elseif op_token == '==' {
@@ -1099,15 +1099,15 @@ local function unop_expression() {
   } elseif unop.token != '~' {
     -- SOURCEMAP: Handle incompatible operand types
     return { unop_line, unop.token, operand }
-  } elseif bitlib {
-    -- NOTE: We wrap the bitlib call in parentheses to prevent tail calls in
+  } elseif bitexpr {
+    -- NOTE: We wrap the bitop call in parentheses to prevent tail calls in
     -- LuaJIT, since any errors will have a misleading stacktrace.
     -- see: https://www.freelists.org/post/luajit/Bad-stack-trace-from-lua-getstack-and-lua-getinfo,1
     --
     -- SOURCEMAP: Handle incompatible argument types
-    return { unop_line, "(require('{ bitlib }').bnot(", operand, '))' }
+    return { unop_line, "(({ bitexpr }).bnot(", operand, '))' }
   } elseif lua_target == '5.1+' || lua_target == '5.2+' {
-    throw('must specify bitlib for compiling bit operations when targeting 5.1+ or 5.2+', unop_line)
+    throw('must specify bitexpr or bitlib for compiling bit operations when targeting 5.1+ or 5.2+', unop_line)
   } else {
     -- SOURCEMAP: Handle incompatible operand types
     return { unop_line, unop.token, operand }
@@ -1124,8 +1124,8 @@ function expression(min_prec = 1) {
   local binop_line, binop = current_token.line, BINOPS[current_token.value]
 
   while binop && binop.prec >= min_prec {
-    if BITOPS[binop.token] && (lua_target == '5.1+' || lua_target == '5.2+') && !bitlib {
-      throw('must specify bitlib for compiling bit operations when targeting 5.1+ or 5.2+', binop_line)
+    if BITOPS[binop.token] && (lua_target == '5.1+' || lua_target == '5.2+') && !bitexpr {
+      throw('must specify bitexpr or bitlib for compiling bit operations when targeting 5.1+ or 5.2+', binop_line)
     }
 
     consume()
@@ -1495,8 +1495,8 @@ local function variable_assignment(first_id) {
 
   local op_line, op_token = current_token.line, BINOP_ASSIGNMENT_TOKENS[current_token.value] && consume()
 
-  if BITOPS[op_token] && (lua_target == '5.1+' || lua_target == '5.2+') && !bitlib {
-    throw('must specify bitlib for compiling bit operations when targeting 5.1+ or 5.2+', op_line)
+  if BITOPS[op_token] && (lua_target == '5.1+' || lua_target == '5.2+') && !bitexpr {
+    throw('must specify bitexpr or bitlib for compiling bit operations when targeting 5.1+ or 5.2+', op_line)
   }
 
   expect('=', true)
@@ -1705,10 +1705,17 @@ return (source, options = {}) -> {
   goto_labels = {}
   alias = options.alias || get_source_alias(source)
   lua_target = options.lua_target || config.lua_target
-  bitlib = options.bitlib || config.bitlib
-    || (lua_target == '5.1' && 'bit') -- Mike Pall's LuaBitOp
-    || (lua_target == 'jit' && 'bit') -- Mike Pall's LuaBitOp
-    || (lua_target == '5.2' && 'bit32') -- Lua 5.2's builtin bit32 library
+
+  if options.bitlib {
+    print("WARNING: `bitlib` has been deprecated in favor of `bitexpr`.")
+  }
+
+  local bitlib = options.bitlib || config.bitlib
+  bitexpr = options.bitexpr || config.bitexpr
+    || (bitlib && "require('{ bitlib }')")
+    || (lua_target == '5.1' && "require('bit')") -- Mike Pall's LuaBitOp
+    || (lua_target == 'jit' && 'bit') -- Mike Pall's LuaBitOp (global)
+    || (lua_target == '5.2' && 'bit32') -- Lua 5.2's builtin bit32 library (global)
 
   local source_map = {}
   local compile_lines = {}

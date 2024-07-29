@@ -38,7 +38,7 @@ local block_declarations, block_declaration_stack
 local goto_jumps, goto_labels
 local alias
 local lua_target
-local bitlib
+local bitexpr
 local function throw(message, line)
 	if line == nil then
 		line = current_token.line
@@ -170,10 +170,10 @@ local function compile_binop(op_token, op_line, lhs, rhs)
 			rhs,
 			")",
 		}
-	elseif bitlib and BITOPS[op_token] then
+	elseif bitexpr and BITOPS[op_token] then
 		return {
 			op_line,
-			"(require('" .. tostring(bitlib) .. "')." .. tostring(BITLIB_METHODS[op_token]) .. "(",
+			"((" .. tostring(bitexpr) .. ")." .. tostring(BITLIB_METHODS[op_token]) .. "(",
 			lhs,
 			",",
 			rhs,
@@ -898,15 +898,15 @@ local function unop_expression()
 			unop.token,
 			operand,
 		}
-	elseif bitlib then
+	elseif bitexpr then
 		return {
 			unop_line,
-			"(require('" .. tostring(bitlib) .. "').bnot(",
+			"((" .. tostring(bitexpr) .. ").bnot(",
 			operand,
 			"))",
 		}
 	elseif lua_target == "5.1+" or lua_target == "5.2+" then
-		throw("must specify bitlib for compiling bit operations when targeting 5.1+ or 5.2+", unop_line)
+		throw("must specify bitexpr or bitlib for compiling bit operations when targeting 5.1+ or 5.2+", unop_line)
 	else
 		return {
 			unop_line,
@@ -925,8 +925,8 @@ function expression(min_prec)
 	local compile_lines = UNOPS[current_token.value] and unop_expression() or terminal_expression()
 	local binop_line, binop = current_token.line, BINOPS[current_token.value]
 	while binop and binop.prec >= min_prec do
-		if BITOPS[binop.token] and (lua_target == "5.1+" or lua_target == "5.2+") and not bitlib then
-			throw("must specify bitlib for compiling bit operations when targeting 5.1+ or 5.2+", binop_line)
+		if BITOPS[binop.token] and (lua_target == "5.1+" or lua_target == "5.2+") and not bitexpr then
+			throw("must specify bitexpr or bitlib for compiling bit operations when targeting 5.1+ or 5.2+", binop_line)
 		end
 		consume()
 		if binop.token == "~" and current_token.value == "=" then
@@ -1211,8 +1211,8 @@ local function variable_assignment(first_id)
 		table.insert(ids, id)
 	end
 	local op_line, op_token = current_token.line, BINOP_ASSIGNMENT_TOKENS[current_token.value] and consume()
-	if BITOPS[op_token] and (lua_target == "5.1+" or lua_target == "5.2+") and not bitlib then
-		throw("must specify bitlib for compiling bit operations when targeting 5.1+ or 5.2+", op_line)
+	if BITOPS[op_token] and (lua_target == "5.1+" or lua_target == "5.2+") and not bitexpr then
+		throw("must specify bitexpr or bitlib for compiling bit operations when targeting 5.1+ or 5.2+", op_line)
 	end
 	expect("=", true)
 	local expressions = list(expression)
@@ -1374,9 +1374,14 @@ return function(source, options)
 	goto_labels = {}
 	alias = options.alias or get_source_alias(source)
 	lua_target = options.lua_target or config.lua_target
-	bitlib = options.bitlib
-		or config.bitlib
-		or (lua_target == "5.1" and "bit")
+	if options.bitlib then
+		print("WARNING: `bitlib` has been deprecated in favor of `bitexpr`.")
+	end
+	local bitlib = options.bitlib or config.bitlib
+	bitexpr = options.bitexpr
+		or config.bitexpr
+		or (bitlib and "require('" .. tostring(bitlib) .. "')")
+		or (lua_target == "5.1" and "require('bit')")
 		or (lua_target == "jit" and "bit")
 		or (lua_target == "5.2" and "bit32")
 	local source_map = {}
@@ -1386,10 +1391,10 @@ return function(source, options)
 		source_map = source_map,
 		source_line = current_token.line,
 	})
-	for _, __ERDE_TMP_1927__ in ipairs(goto_jumps) do
+	for _, __ERDE_TMP_1936__ in ipairs(goto_jumps) do
 		local label, line
-		label = __ERDE_TMP_1927__.label
-		line = __ERDE_TMP_1927__.line
+		label = __ERDE_TMP_1936__.label
+		line = __ERDE_TMP_1936__.line
 		if goto_labels[label] == nil then
 			throw("failed to find goto label '" .. tostring(label) .. "'", line)
 		end

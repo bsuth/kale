@@ -5,6 +5,9 @@ module lua_target = '5.1+'
 -- precise error rewriting.
 module is_cli_runtime = false
 
+-- User specified expression to use for bit operations.
+module bitexpr = nil
+
 -- User specified library to use for bit operations.
 module bitlib = nil
 

@@ -113,7 +113,9 @@ Commands:
 Options:
    -h, --help             Show this help message and exit.
    -v, --version          Show version and exit.
+   --bitexpr    <EXPR>    Expression to use for bit operations.
    -b, --bitlib <LIB>     Library to use for bit operations.
+                          DEPRECATED: Use --bitexpr instead.
    -t, --target <TARGET>  Lua target for version compatability.
                           Must be one of: ]] .. tostring(table.concat(VALID_LUA_TARGETS, ", ")) .. [[
 
@@ -385,7 +387,10 @@ while current_arg_index <= num_args do
 		end
 	elseif arg_value == "-o" or arg_value == "--outdir" then
 		cli.outdir = parse_option(arg_value)
+	elseif arg_value == "--bitexpr" then
+		config.bitexpr = parse_option(arg_value)
 	elseif arg_value == "-b" or arg_value == "--bitlib" then
+		print("WARNING: `--bitlib` has been deprecated in favor of `--bitexpr`.")
 		config.bitlib = parse_option(arg_value)
 	elseif arg_value:sub(1, 1) == "-" then
 		terminate("Unrecognized option: " .. tostring(arg_value))
